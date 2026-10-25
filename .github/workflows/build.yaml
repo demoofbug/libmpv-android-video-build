@@ -58,12 +58,20 @@ jobs:
       #   run: |
       #     sudo chmod +x bundle_encoders-gpl.sh
       #     ./bundle_encoders-gpl.sh
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          path: |
+            ./buildscripts/*.zip
+            ./buildscripts/artifacts/**
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           draft: false
           prerelease: false
+          fail_on_unmatched_files: true
           tag_name: ${{ github.ref_name }}
           files: |
             buildscripts/*.zip

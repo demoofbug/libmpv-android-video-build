@@ -111,8 +111,9 @@ Rules:
   environment variable).
 - Pushing a `v*` tag triggers CI, which builds the `default` and `full`
   flavors and publishes them to a GitHub Release named after the tag. Pushes
-  to `main` do not trigger builds; pull requests and manual dispatch build
-  without uploading anything.
+  to `main` do not trigger builds; pull requests and manual dispatch attach
+  the build artifacts to the workflow run (for testing) without publishing
+  anything.
 
 ## Version history
 
