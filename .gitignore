@@ -10,3 +10,11 @@ obj
 build
 local.properties
 *~
+
+# build outputs
+buildscripts/deps/
+buildscripts/prefix/
+buildscripts/sdk/
+buildscripts/artifacts/
+buildscripts/scripts/ffmpeg.sh
+buildscripts/*.zip

@@ -8,6 +8,18 @@ if [ -d "prefix" ]; then
   sudo rm -r prefix
 fi
 
+. ./include/depinfo.sh
+
+# Artifact version is v<engine-version>+<build-number>; see README (Versioning).
+# The engine part must match depinfo.sh (the version actually built); the build
+# number comes from the release tag passed as VERSION (CI), 0 for local builds.
+version="${VERSION:-}"
+if [ -n "$version" ]; then
+  [ "${version%%+*}" = "v$v_mpv" ] || { echo "ERROR: VERSION=$version does not match depinfo v_mpv=$v_mpv" >&2; exit 1; }
+else
+  version="v$v_mpv+0"
+fi
+
 ./download.sh
 ./patch.sh
 
@@ -22,9 +34,8 @@ cp flavors/default.sh scripts/ffmpeg.sh
 
 ./build.sh
 
-zip -r debug-symbols-default.zip prefix/*/lib
+zip -r "libmpv-symbols_${version}_default.zip" prefix/*/lib
 
-. ./include/depinfo.sh
 ./sdk/android-sdk-linux/ndk/$v_ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip --strip-all prefix/arm64-v8a/usr/local/lib/libmpv.so
 ./sdk/android-sdk-linux/ndk/$v_ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip --strip-all prefix/armeabi-v7a/usr/local/lib/libmpv.so
 ./sdk/android-sdk-linux/ndk/$v_ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip --strip-all prefix/x86/usr/local/lib/libmpv.so
@@ -32,28 +43,12 @@ zip -r debug-symbols-default.zip prefix/*/lib
 
 # --------------------------------------------------
 
-cd deps/media-kit-android-helper
-
-sudo chmod +x gradlew
-./gradlew assembleRelease
-
-unzip -o app/build/outputs/apk/release/app-release.apk -d app/build/outputs/apk/release
-
-cp ../../prefix/arm64-v8a/usr/local/lib/libmpv.so      app/build/outputs/apk/release/lib/arm64-v8a
-cp ../../prefix/armeabi-v7a/usr/local/lib/libmpv.so    app/build/outputs/apk/release/lib/armeabi-v7a
-cp ../../prefix/x86/usr/local/lib/libmpv.so            app/build/outputs/apk/release/lib/x86
-cp ../../prefix/x86_64/usr/local/lib/libmpv.so         app/build/outputs/apk/release/lib/x86_64
-
-cd app/build/outputs/apk/release
-
-zip -r default-arm64-v8a.jar      lib/arm64-v8a/*.so
-zip -r default-armeabi-v7a.jar    lib/armeabi-v7a/*.so
-zip -r default-x86.jar            lib/x86/*.so
-zip -r default-x86_64.jar         lib/x86_64/*.so
-
-md5sum *.jar
-
-cd ../../../../../../..
-
 mkdir -p artifacts/default
-cp deps/media-kit-android-helper/app/build/outputs/apk/release/default-*.jar artifacts/default/
+for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+	mkdir -p "artifacts/default/lib/$abi"
+	cp "prefix/$abi/usr/local/lib/libmpv.so" "artifacts/default/lib/$abi/"
+	(cd artifacts/default && zip -r "libmpv_${version}_android-$abi-default.jar" "lib/$abi")
+done
+rm -r artifacts/default/lib
+
+(cd artifacts/default && md5sum libmpv_*.jar > md5.txt)

@@ -2,8 +2,8 @@ name: Build libmpv-android
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
   pull_request:
   workflow_dispatch:
     inputs:
@@ -12,8 +12,16 @@ on:
         required: true
         default: 'warning'
 
+# main branch pushes do not trigger builds; tags build and publish,
+# pull requests and manual dispatch build only (nothing is uploaded).
+
 permissions:
   contents: write
+
+env:
+  # On tag builds the tag (v<engine-version>+<build-number>) is passed to the
+  # bundle scripts; otherwise they fall back to v$v_mpv+0. See README.
+  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
 
 jobs:
   build:
@@ -27,8 +35,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
       - name: Symlink SDK
         working-directory: ./buildscripts
         run: |
@@ -44,25 +50,29 @@ jobs:
         run: |
           sudo chmod +x bundle_full.sh
           ./bundle_full.sh
-      - name: Bundle (encoders-gpl)
-        working-directory: ./buildscripts
-        run: |
-          sudo chmod +x bundle_encoders-gpl.sh
-          ./bundle_encoders-gpl.sh
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      # encoders-gpl is not built: fftools-ffi does not compile against the
+      # ffmpeg 9 API (see README, Version history). Re-enable once upstream
+      # ports it.
+      # - name: Bundle (encoders-gpl)
+      #   working-directory: ./buildscripts
+      #   run: |
+      #     sudo chmod +x bundle_encoders-gpl.sh
+      #     ./bundle_encoders-gpl.sh
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
         with:
-          name: artifact
+          if-no-files-found: error
           path: |
-            ./buildscripts/*.jar
+            ./buildscripts/*.zip
             ./buildscripts/artifacts/**
       - name: Upload Release
         uses: softprops/action-gh-release@v1
-        if: github.ref == 'refs/heads/main'
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
-          draft: true
+          draft: false
           prerelease: false
-          tag_name: "vnext"
+          fail_on_unmatched_files: true
+          tag_name: ${{ github.ref_name }}
           files: |
             buildscripts/*.zip
             buildscripts/artifacts/**
