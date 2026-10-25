@@ -51,4 +51,4 @@ for abi in arm64-v8a armeabi-v7a x86 x86_64; do
 done
 rm -r artifacts/default/lib
 
-(cd artifacts/default && md5sum libmpv_*.jar > md5.txt)
+(cd artifacts/default && md5sum libmpv_*.jar > default.md5.txt)

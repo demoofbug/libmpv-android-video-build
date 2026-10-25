@@ -51,4 +51,4 @@ for abi in arm64-v8a armeabi-v7a x86 x86_64; do
 done
 rm -r artifacts/full/lib
 
-(cd artifacts/full && md5sum libmpv_*.jar > md5.txt)
+(cd artifacts/full && md5sum libmpv_*.jar > full.md5.txt)

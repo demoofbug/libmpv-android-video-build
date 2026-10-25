@@ -30,13 +30,13 @@ $ tree artifacts
 │   ├── libmpv_v0.41.0+1_android-armeabi-v7a-default.jar
 │   ├── libmpv_v0.41.0+1_android-x86-default.jar
 │   ├── libmpv_v0.41.0+1_android-x86_64-default.jar
-│   └── md5.txt
+│   └── default.md5.txt
 └── full
     ├── libmpv_v0.41.0+1_android-arm64-v8a-full.jar
     ├── libmpv_v0.41.0+1_android-armeabi-v7a-full.jar
     ├── libmpv_v0.41.0+1_android-x86-full.jar
     ├── libmpv_v0.41.0+1_android-x86_64-full.jar
-    └── md5.txt
+    └── full.md5.txt
 ```
 
 </details>

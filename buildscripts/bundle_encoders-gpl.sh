@@ -53,4 +53,4 @@ for abi in arm64-v8a armeabi-v7a x86 x86_64; do
 done
 rm -r artifacts/encoders-gpl/lib
 
-(cd artifacts/encoders-gpl && md5sum libmpv_*.jar > md5.txt)
+(cd artifacts/encoders-gpl && md5sum libmpv_*.jar > encoders-gpl.md5.txt)
