@@ -50,5 +50,3 @@ for abi in arm64-v8a armeabi-v7a x86 x86_64; do
 	(cd artifacts/full && zip -r "libmpv_${version}_android-$abi-full.jar" "lib/$abi")
 done
 rm -r artifacts/full/lib
-
-(cd artifacts/full && md5sum libmpv_*.jar > full.md5.txt)

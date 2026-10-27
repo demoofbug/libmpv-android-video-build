@@ -52,5 +52,3 @@ for abi in arm64-v8a armeabi-v7a x86 x86_64; do
 	(cd artifacts/encoders-gpl && zip -r "libmpv_${version}_android-$abi-encoders-gpl.jar" "lib/$abi")
 done
 rm -r artifacts/encoders-gpl/lib
-
-(cd artifacts/encoders-gpl && md5sum libmpv_*.jar > encoders-gpl.md5.txt)
