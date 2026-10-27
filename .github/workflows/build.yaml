@@ -58,6 +58,21 @@ jobs:
       #   run: |
       #     sudo chmod +x bundle_encoders-gpl.sh
       #     ./bundle_encoders-gpl.sh
+      # The release is flat: symbol archives under buildscripts/, jars under
+      # artifacts/<flavor>/. Hardlink them into one directory so the list and
+      # the bytes it describes sit in the same place, without duplicating the
+      # archives that make up most of the release size.
+      - name: Assembling release directory
+        run: |
+          mkdir -p buildscripts/dist
+          ln buildscripts/*.zip buildscripts/artifacts/*/*.jar buildscripts/dist/
+          du -ah buildscripts/dist/*
+      - name: Generating SHA256SUMS
+        run: |
+          bash buildscripts/gen-sha256sums.sh gen buildscripts/dist buildscripts/SHA256SUMS.txt
+      - name: Verifying SHA256SUMS
+        run: |
+          bash buildscripts/gen-sha256sums.sh check buildscripts/dist buildscripts/SHA256SUMS.txt 10
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -66,7 +81,7 @@ jobs:
             ./buildscripts/*.zip
             ./buildscripts/artifacts/**
       - name: Upload Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           draft: false
@@ -76,3 +91,71 @@ jobs:
           files: |
             buildscripts/*.zip
             buildscripts/artifacts/**
+            buildscripts/SHA256SUMS.txt
+
+  # Fixture-only job: it proves the list format, the ordering and that
+  # verification actually fails on tampered bytes, without publishing
+  # anything. The real list is verified by the steps above on every run.
+  checksums_selftest:
+    name: SHA256SUMS generator selftest (fixtures)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Generating, verifying and tamper-testing the list
+        run: |
+          set -euo pipefail
+          gen="bash buildscripts/gen-sha256sums.sh gen selftest selftest/SHA256SUMS.txt"
+          check="bash buildscripts/gen-sha256sums.sh check selftest selftest/SHA256SUMS.txt 3"
+
+          mkdir -p selftest/inner
+          for name in libmpv_v0.0.0+1_android-arm64-v8a-default.jar libmpv-symbols_v0.0.0+1_full.zip libmpv_v0.0.0+1_android-x86-full.jar; do
+            head -c 4096 /dev/urandom > "selftest/$name"
+          done
+
+          $gen
+
+          if grep -qvE '^[0-9a-f]{64}  [A-Za-z0-9][A-Za-z0-9._+-]*$' selftest/SHA256SUMS.txt; then
+            echo 'ERROR: a row is not "<64 lowercase hex><space><space><basename>"' >&2
+            cat selftest/SHA256SUMS.txt >&2
+            exit 1
+          fi
+          if grep -q $'\r' selftest/SHA256SUMS.txt; then
+            echo 'ERROR: the list must be LF-only' >&2
+            exit 1
+          fi
+          if [ "$(tail -c 1 selftest/SHA256SUMS.txt | od -An -tx1 | tr -d ' \n')" != 0a ]; then
+            echo 'ERROR: the list must end with a newline' >&2
+            exit 1
+          fi
+          if grep -q inner selftest/SHA256SUMS.txt; then
+            echo 'ERROR: a directory leaked into the list' >&2
+            exit 1
+          fi
+          LC_ALL=C sort -c -k2 selftest/SHA256SUMS.txt
+
+          $check
+
+          if bash buildscripts/gen-sha256sums.sh check selftest selftest/SHA256SUMS.txt 4; then
+            echo 'ERROR: check accepted a wrong expected row count' >&2
+            exit 1
+          fi
+          if $gen; then
+            echo 'ERROR: gen must not overwrite an existing list' >&2
+            exit 1
+          fi
+          cp selftest/SHA256SUMS.txt first.txt
+          rm selftest/SHA256SUMS.txt
+          $gen
+          cmp first.txt selftest/SHA256SUMS.txt
+
+          tampered=$(mktemp -d)
+          cp -R selftest/. "$tampered/"
+          printf 'tampered\n' >> "$tampered/libmpv-symbols_v0.0.0+1_full.zip"
+          if bash buildscripts/gen-sha256sums.sh check "$tampered" "$tampered/SHA256SUMS.txt"; then
+            echo 'ERROR: a tampered asset passed verification' >&2
+            exit 1
+          fi
+          rm -rf "$tampered"
+
+          $check
